@@ -1,0 +1,252 @@
+diff --git a/include/modules/m_ui.h b/include/modules/m_ui.h
+index 9703a38..2ecb668 100644
+--- a/include/modules/m_ui.h
++++ b/include/modules/m_ui.h
+@@ -114,6 +114,15 @@ enum
+     }                                                           \
+ }
+ 
++/** @brief Lightwell LED color while the button is held.
++ */
++#define UI_BUTTON_HOLD_COLOR                                    \
++{                                                               \
++    .r = 255,                                                   \
++    .g = 255,                                                   \
++    .b = 255                                                    \
++}
++
+ /** @brief Default LED sequence values.
+  */
+ #define SEQUENCE_DEFAULT_VALUES                                     \
+diff --git a/project/pca20020_s132/armgcc/Makefile b/project/pca20020_s132/armgcc/Makefile
+index cf533c2..224c3cb 100644
+--- a/project/pca20020_s132/armgcc/Makefile
++++ b/project/pca20020_s132/armgcc/Makefile
+@@ -35,11 +35,42 @@ SIZE            := '$(GNU_INSTALL_ROOT)/bin/$(GNU_PREFIX)-size'
+ #function for removing duplicates in a list
+ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
+ 
++# The motion module needs InvenSense's proprietary MPL library (see README.md prerequisites).
++# Without it the firmware is built without the motion service.
++MPL_LIB := $(abspath ../../../libs/liblibmplmpu_m4_hardfp/liblibmplmpu.a)
++ifneq ($(wildcard $(MPL_LIB)),)
++THINGY_MOTION := 1
++LIBS += $(MPL_LIB)
++endif
++
+ LIBS += \
+-$(abspath ../../../libs/liblibmplmpu_m4_hardfp/liblibmplmpu.a) \
+ $(abspath ../../../sdk_components/toolchain/cmsis/dsp/GCC/libarm_cortexM4lf_math.a) \
+ $(abspath ../../../sdk_components/nfc/t2t_lib/nfc_t2t_lib_gcc.a) \
+ 
++ifdef THINGY_MOTION
++C_SOURCE_FILES += \
++$(abspath ../../../source/modules/m_motion.c) \
++$(abspath ../../../source/modules/m_motion_flash.c) \
++$(abspath ../../../source/drivers/drv_mpu9250.c) \
++$(abspath ../../../source/drivers/drv_motion.c) \
++$(abspath ../../../source/drivers/drv_acc_lis3dh.c) \
++$(abspath ../../../libs/eMD6/core/driver/eMPL/inv_mpu.c) \
++$(abspath ../../../libs/eMD6/core/driver/eMPL/inv_mpu_dmp_motion_driver.c) \
++$(abspath ../../../libs/eMD6/core/mllite/data_builder.c) \
++$(abspath ../../../libs/eMD6/core/mllite/hal_outputs.c) \
++$(abspath ../../../libs/eMD6/core/mllite/message_layer.c) \
++$(abspath ../../../libs/eMD6/core/mllite/ml_math_func.c) \
++$(abspath ../../../libs/eMD6/core/mllite/mlmath.c) \
++$(abspath ../../../libs/eMD6/core/mllite/mpl.c) \
++$(abspath ../../../libs/eMD6/core/mllite/results_holder.c) \
++$(abspath ../../../libs/eMD6/core/mllite/start_manager.c) \
++$(abspath ../../../libs/eMD6/core/mllite/storage_manager.c) \
++$(abspath ../../../libs/eMD6/core/eMPL-hal/eMPL_outputs.c) \
++$(abspath ../../../libs/eMD6/core/driver/nRF52/log_nrf52.c) \
++
++CFLAGS += -DTHINGY_MOTION
++endif
++
+ #source common to all targets
+ C_SOURCE_FILES += \
+ $(abspath ../main.c) \
+@@ -51,8 +82,6 @@ $(abspath ../../../source/util/support_func.c) \
+ $(abspath ../../../source/modules/m_environment.c) \
+ $(abspath ../../../source/modules/m_environment_flash.c) \
+ $(abspath ../../../source/modules/m_sound.c) \
+-$(abspath ../../../source/modules/m_motion.c) \
+-$(abspath ../../../source/modules/m_motion_flash.c) \
+ $(abspath ../../../source/modules/m_ui.c) \
+ $(abspath ../../../source/modules/m_ui_flash.c) \
+ $(abspath ../../../source/modules/m_batt_meas.c) \
+@@ -70,23 +99,7 @@ $(abspath ../../../source/drivers/drv_sx1509.c) \
+ $(abspath ../../../source/drivers/drv_bh1745.c) \
+ $(abspath ../../../source/drivers/drv_color.c) \
+ $(abspath ../../../source/drivers/drv_speaker.c) \
+-$(abspath ../../../source/drivers/drv_mpu9250.c) \
+-$(abspath ../../../source/drivers/drv_motion.c) \
+-$(abspath ../../../source/drivers/drv_acc_lis3dh.c) \
+ $(abspath ../../../source/drivers/drv_mic.c) \
+-$(abspath ../../../libs/eMD6/core/driver/eMPL/inv_mpu.c) \
+-$(abspath ../../../libs/eMD6/core/driver/eMPL/inv_mpu_dmp_motion_driver.c) \
+-$(abspath ../../../libs/eMD6/core/mllite/data_builder.c) \
+-$(abspath ../../../libs/eMD6/core/mllite/hal_outputs.c) \
+-$(abspath ../../../libs/eMD6/core/mllite/message_layer.c) \
+-$(abspath ../../../libs/eMD6/core/mllite/ml_math_func.c) \
+-$(abspath ../../../libs/eMD6/core/mllite/mlmath.c) \
+-$(abspath ../../../libs/eMD6/core/mllite/mpl.c) \
+-$(abspath ../../../libs/eMD6/core/mllite/results_holder.c) \
+-$(abspath ../../../libs/eMD6/core/mllite/start_manager.c) \
+-$(abspath ../../../libs/eMD6/core/mllite/storage_manager.c) \
+-$(abspath ../../../libs/eMD6/core/eMPL-hal/eMPL_outputs.c) \
+-$(abspath ../../../libs/eMD6/core/driver/nRF52/log_nrf52.c) \
+ $(abspath ../../../libs/dvi_adpcm/dvi_adpcm.c) \
+ $(abspath ../../../libs/sr3_audio/drv_audio_coder_adpcm.c) \
+ $(abspath ../../../libs/sr3_audio/drv_audio_coder_bv32fp.c) \
+@@ -132,7 +145,6 @@ $(abspath ../../../sdk_components/libraries/fds/fds.c) \
+ $(abspath ../../../sdk_components/libraries/util/app_util_platform.c) \
+ $(abspath ../../../sdk_components/libraries/util/sdk_mapped_flags.c) \
+ $(abspath ../../../sdk_components/libraries/queue/nrf_queue.c) \
+-$(abspath ../../../external/segger_rtt/RTT_Syscalls_GCC.c) \
+ $(abspath ../../../external/segger_rtt/SEGGER_RTT.c) \
+ $(abspath ../../../external/segger_rtt/SEGGER_RTT_printf.c) \
+ $(abspath ../../../external/sdk13_override/softdevice_handler_appsh.c) \
+@@ -266,6 +278,11 @@ CFLAGS += -DHAL_NFC_ENGINEERING_BC_FTPAN_WORKAROUND
+ CFLAGS += -mcpu=cortex-m4
+ CFLAGS += -mthumb -mabi=aapcs --std=gnu99
+ CFLAGS += -Wall -Werror -O3 -g3
++# Newer GCC flags the SDK's linker-section arrays (fstorage, gpiote) as out of bounds; GCC 4.9 did not.
++CFLAGS += -Wno-error=array-bounds
++ifdef THINGY_FW_VERSION_PATCH
++CFLAGS += -DTHINGY_FW_VERSION_PATCH=$(THINGY_FW_VERSION_PATCH)
++endif
+ CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
+ # keep every function in separate section. This will allow linker to dump unused functions
+ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
+diff --git a/project/pca20020_s132/config/thingy_config.h b/project/pca20020_s132/config/thingy_config.h
+index 7ad4091..beac257 100644
+--- a/project/pca20020_s132/config/thingy_config.h
++++ b/project/pca20020_s132/config/thingy_config.h
+@@ -89,7 +89,9 @@
+ Version numbers are changed for releases. */
+ #define THINGY_FW_VERSION_MAJOR     (0xFF)
+ #define THINGY_FW_VERSION_MINOR     (0xFF)
+-#define THINGY_FW_VERSION_PATCH     (0xFF)
++#ifndef THINGY_FW_VERSION_PATCH
++    #define THINGY_FW_VERSION_PATCH (0xFF)  /**< May be set from the build to tell custom builds apart. */
++#endif
+ 
+ /**@brief Thingy default configuration. */
+ #define THINGY_CONFIG_DEFAULT                         \
+diff --git a/project/pca20020_s132/main.c b/project/pca20020_s132/main.c
+index 48d773e..5b07f5c 100644
+--- a/project/pca20020_s132/main.c
++++ b/project/pca20020_s132/main.c
+@@ -125,16 +125,20 @@ static void sleep_mode_enter(void)
+     uint32_t err_code;
+ 
+     NRF_LOG_INFO("Entering sleep mode \r\n");
+-    err_code = m_motion_sleep_prepare(true);
+-    APP_ERROR_CHECK(err_code);
++    #ifdef THINGY_MOTION
++        err_code = m_motion_sleep_prepare(true);
++        APP_ERROR_CHECK(err_code);
++    #endif
+ 
+     err_code = support_func_configure_io_shutdown();
+     APP_ERROR_CHECK(err_code);
+-    
++
+     // Enable wake on button press.
+     nrf_gpio_cfg_sense_input(BUTTON, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+-    // Enable wake on low power accelerometer.
+-    nrf_gpio_cfg_sense_input(LIS_INT1, NRF_GPIO_PIN_NOPULL, NRF_GPIO_PIN_SENSE_HIGH);
++    #ifdef THINGY_MOTION
++        // Enable wake on low power accelerometer.
++        nrf_gpio_cfg_sense_input(LIS_INT1, NRF_GPIO_PIN_NOPULL, NRF_GPIO_PIN_SENSE_HIGH);
++    #endif
+    
+     NRF_LOG_FLUSH();
+     nrf_delay_ms(5);
+@@ -257,7 +261,9 @@ static void thingy_init(void)
+     uint32_t                 err_code;
+     m_ui_init_t              ui_params;
+     m_environment_init_t     env_params;
+-    m_motion_init_t          motion_params;
++    #ifdef THINGY_MOTION
++        m_motion_init_t      motion_params;
++    #endif
+     m_ble_init_t             ble_params;
+     batt_meas_init_t         batt_meas_init = BATT_MEAS_PARAM_CFG;
+ 
+@@ -277,12 +283,14 @@ static void thingy_init(void)
+                                   &env_params);
+     APP_ERROR_CHECK(err_code);
+ 
+-    /**@brief Initialize motion module. */
+-    motion_params.p_twi_instance = &m_twi_sensors;
++    #ifdef THINGY_MOTION
++        /**@brief Initialize motion module. */
++        motion_params.p_twi_instance = &m_twi_sensors;
+ 
+-    err_code = m_motion_init(&m_ble_service_handles[THINGY_SERVICE_MOTION],
+-                             &motion_params);
+-    APP_ERROR_CHECK(err_code);
++        err_code = m_motion_init(&m_ble_service_handles[THINGY_SERVICE_MOTION],
++                                 &motion_params);
++        APP_ERROR_CHECK(err_code);
++    #endif
+ 
+     err_code = m_sound_init(&m_ble_service_handles[THINGY_SERVICE_SOUND]);
+     APP_ERROR_CHECK(err_code);
+diff --git a/source/modules/m_ui.c b/source/modules/m_ui.c
+index c701430..d53cbf4 100644
+--- a/source/modules/m_ui.c
++++ b/source/modules/m_ui.c
+@@ -351,12 +351,50 @@ static ret_code_t thingy_ui_service_init(bool major_minor_fw_ver_changed)
+ }
+ 
+ 
++/**@brief Restores the LED state that applies while the button is not held.
++ */
++static ret_code_t led_restore(void)
++{
++    if (m_uis.conn_handle != BLE_CONN_HANDLE_INVALID)
++    {
++        return led_set(mp_config_ui, NULL);
++    }
++
++    return m_ui_led_set_event(M_UI_BLE_DISCONNECTED);
++}
++
++
++/**@brief Keeps the lightwell LED lit while the button is held.
++ *
++ * @details Bypasses the BLE LED configuration so the light comes on even when the LED is configured as off.
++ */
++static ret_code_t led_button_hold(uint8_t button_action)
++{
++    ret_code_t                                  err_code;
++    static const drv_ext_light_rgb_intensity_t  hold_color = UI_BUTTON_HOLD_COLOR;
++
++    if (button_action != APP_BUTTON_PUSH)
++    {
++        return led_restore();
++    }
++
++    err_code = drv_ext_light_off(DRV_EXT_RGB_LED_LIGHTWELL);
++    RETURN_IF_ERROR(err_code);
++
++    return drv_ext_light_rgb_intensity_set(DRV_EXT_RGB_LED_LIGHTWELL, &hold_color);
++}
++
++
+ static void button_evt_handler(uint8_t pin_no, uint8_t button_action)
+ {
+     uint32_t err_code;
+ 
+     if (pin_no == BUTTON)
+     {
++        err_code = led_button_hold(button_action);
++        APP_ERROR_CHECK(err_code);
++
++
+         //If Thingy is connected to a Central.
+         if (m_uis.conn_handle != BLE_CONN_HANDLE_INVALID)
+         {

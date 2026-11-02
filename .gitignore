@@ -1,0 +1,15 @@
+# Python environment: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/
+__pycache__/
+
+# DFU signing key. Keep a private backup; never commit it.
+keys/private.pem
+
+# Nordic's firmware tree, fetched and patched by tools/build.sh
+thingy-fw/
+
+# Build outputs from tools/build.sh
+out/
+
+# Scratch files
+work/
