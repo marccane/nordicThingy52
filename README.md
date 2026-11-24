@@ -1,6 +1,6 @@
 # Thingy:52 button light + OTA
 
-Custom firmware for the Nordic Thingy:52. The lightwell LED stays on (white) while the button is held, and goes back to its normal pattern when it is released. All sensors stream over BLE: environment (temperature, pressure, humidity, air quality, colour), battery, and motion. `tools/sensors.py` receives and logs them. The firmware can be updated over BLE (Secure DFU). Updates are signed with our own key and checked by our own bootloader.
+Custom firmware for the Nordic Thingy:52. The lightwell LED stays on (white) while the button is held, and goes back to its normal pattern when it is released. All sensors stream over BLE: environment (temperature, pressure, humidity, air quality, colour), battery, and motion. `tools/dashboard.py` shows them live in the terminal, for several Thingys at once, and `tools/sensors.py` prints and logs them. The firmware can be updated over BLE (Secure DFU). Updates are signed with our own key and checked by our own bootloader.
 
 It is Nordic's official Thingy firmware with a small patch on top. The base is [Nordic-Thingy52-FW](https://github.com/NordicSemiconductor/Nordic-Thingy52-FW) at `6ada0a9` (v2.2.0, nRF5 SDK 13, S132 4.0.2). Nordic's tree is not stored here: `tools/build.sh` fetches it at that commit and applies `patches/thingy-fw.patch`. Everything else is kept: the BLE services, the Thingy app support, sleep, and buttonless DFU.
 
@@ -20,6 +20,7 @@ Our app sleeps after 3 minutes of advertising without a connection; press the bu
 - `tools/mkpkg.py`: makes signed DFU packages (replaces nrfutil, which no longer runs on current Python)
 - `tools/secure_dfu.py`: Secure DFU client over BLE (BlueZ via bleak); handles buttonless entry
 - `tools/jlink.py`: SWD backup / flash / verify through J-Link Commander (nrfjprog can't open our J-Link)
+- `tools/dashboard.py`: terminal dashboard with the latest value of every sensor, one column per Thingy
 - `tools/sensors.py`: streams every sensor over BLE, prints it and optionally logs it to CSV
 - `tools/gatt_dump.py`, `tools/button_watch.py`: BLE inspection helpers
 - `backup/`: SWD read-outs of both units (see `backup/README.md`)
@@ -54,6 +55,17 @@ The client reboots the app into the bootloader (`ThingyDfu`, address + 1), sends
 **Recovery:** hold the button while switching the Thingy on. It then stays in the bootloader and waits for a package.
 
 ## Reading the sensors
+
+### Live dashboard
+
+    .venv/bin/python tools/dashboard.py                                          # every Thingy nearby
+    .venv/bin/python tools/dashboard.py --addr E1:2A:60:8A:80:C1=A --addr EA:BF:EE:F7:76:21=B
+
+One column per Thingy, with the latest value of every sensor and a sparkline of the last 10 minutes of temperature. A value that has not changed for 3 s or more shows its age. Keys: `q` quits and disconnects, `m` turns motion off and on. Off also unsubscribes, so the Thingys power their motion sensor down.
+
+A Thingy accepts one connection, and while connected it doesn't advertise. Close `sensors.py`, the nRF app or another dashboard first, or the dashboard won't find it. The firmware reboots on every disconnect. The dashboard notices, finds the Thingy again when it advertises and reconnects, which takes about 6 s. A Thingy asleep after 3 minutes without a connection reappears when its button is pressed.
+
+### Streaming and logging
 
     .venv/bin/python tools/sensors.py --addr E1:2A:60:8A:80:C1                   # everything
     .venv/bin/python tools/sensors.py --only temperature,humidity --csv log.csv   # subset, logged
