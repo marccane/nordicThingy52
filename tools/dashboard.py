@@ -98,7 +98,10 @@ class Device:
         return on_notify
 
     def lost(self, client):
-        if client is not self.client:  # a callback from an earlier, already replaced connection
+        # Ignore callbacks from an earlier, replaced connection, and any that arrive while connecting:
+        # when BlueZ aborts an attempt (le-connection-abort-by-local), bleak reports a disconnect and
+        # then retries within the same connect() call, which may still succeed. connect() decides.
+        if client is not self.client or self.status != "connected":
             return
         self.client = None
         self.status = "searching"
@@ -176,13 +179,13 @@ async def connect(state, d, ble_device):
             if "battery" not in d.missing:
                 # The battery level is notified only when it changes; show the current one now.
                 d.handler("battery")(None, await client.read_gatt_char(SENSORS["battery"][0]))
-            if client.is_connected and d.client is client:
-                d.status = "connected"
+            if not client.is_connected:
+                raise ConnectionError("disconnected while subscribing")
+            d.status = "connected"
         except Exception as e:
-            if d.client is client:
-                d.client = None
-                d.status = "searching"
-                d.note = f"connect failed: {e or type(e).__name__}"
+            d.client = None
+            d.status = "searching"
+            d.note = f"connect failed: {str(e) or type(e).__name__}"
             await disconnect(client)
 
 
