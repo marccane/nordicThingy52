@@ -27,7 +27,7 @@ mkdir -p "$OUT"
 if [ ! -d "$FW" ]; then
     git clone --quiet "$UPSTREAM" "$FW"
     git -C "$FW" checkout --quiet --detach "$UPSTREAM_COMMIT"
-    git -C "$FW" apply "$PATCH"
+    git -C "$FW" apply --intent-to-add "$PATCH"
     git clone --quiet "$MICRO_ECC" "$FW/external/sdk13/external/micro-ecc/micro-ecc"
     git -C "$FW/external/sdk13/external/micro-ecc/micro-ecc" checkout --quiet --detach "$MICRO_ECC_COMMIT"
 elif [ "$(git -C "$FW" diff | grep -v '^index ')" != "$(grep -v '^index ' "$PATCH")" ]; then
@@ -49,9 +49,16 @@ rm -rf "$FW/project/bootloader_secure/pca20020/armgcc/_build"
 make -C "$FW/project/bootloader_secure/pca20020/armgcc" -j8 $TOOLCHAIN
 mergehex -m "$SD_HEX" "$FW/project/bootloader_secure/pca20020/armgcc/_build/nrf52832_xxaa_s132.hex" -o "$OUT/thingy_sd_bl.hex"
 
+# Motion sensors: Nordic's tree bundles a soft-float (IAR, --fpu=None) build of InvenSense's MPL library.
+# Route its float-by-value calls through the AAPCS shims in source/util/mpl_aapcs_shims.c.
+MPL_LIB=$FW/libs/eMD6/core/mpl/libmpllib_aapcs.a
+MPL_FLOAT_CALLS="sqrtf sinf cosf acosf sqrt cos acos atan2 log inv_wrap_angle inv_compass_angle"
+arm-none-eabi-objcopy $(for s in $MPL_FLOAT_CALLS; do printf ' --redefine-sym %s=mpl_aapcs_%s' "$s" "$s"; done) \
+    "$FW/libs/eMD6/core/mpl/libmpllib.a" "$MPL_LIB"
+
 # Application. The version also becomes the patch number of the FW Version characteristic.
 rm -rf "$FW/project/pca20020_s132/armgcc/_build"
-make -C "$FW/project/pca20020_s132/armgcc" -j8 $TOOLCHAIN THINGY_FW_VERSION_PATCH="$VERSION"
+make -C "$FW/project/pca20020_s132/armgcc" -j8 $TOOLCHAIN MPL_LIB="$MPL_LIB" THINGY_FW_VERSION_PATCH="$VERSION"
 cp "$FW/project/pca20020_s132/armgcc/_build/nrf52832_xxaa_s132.hex" "$OUT/thingy_app_v$VERSION.hex"
 "$ROOT/.venv/bin/python" "$ROOT/tools/mkpkg.py" --key "$ROOT/keys/private.pem" --app-version "$VERSION" \
     "$OUT/thingy_app_v$VERSION.hex" "$OUT/thingy_app_v$VERSION.zip"
