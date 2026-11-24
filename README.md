@@ -70,7 +70,30 @@ A Thingy accepts one connection, and while connected it doesn't advertise. Close
     .venv/bin/python tools/sensors.py --addr E1:2A:60:8A:80:C1                   # everything
     .venv/bin/python tools/sensors.py --only temperature,humidity --csv log.csv   # subset, logged
 
-The tool prints at most one line per sensor per second (`--interval 0` prints everything) and appends every notification to the CSV, one row per field. Temperature arrives every 2 s by default; `--temp-interval MS` changes that interval, and the Thingy stores the setting. Button, tap, orientation and step data arrive only when something happens. The air-quality sensor reports 400 ppm eCO2 / 0 ppb TVOC until it has warmed up (about 20 minutes).
+The tool prints at most one line per sensor per second (`--interval 0` prints everything) and appends every notification to the CSV, one row per field. `--temp-interval MS` changes the temperature interval, and the Thingy stores the setting. The air-quality sensor reports 400 ppm eCO2 / 0 ppb TVOC until it has warmed up (about 20 minutes).
+
+`--only` takes a comma-separated list of these names. Without it, the tool subscribes to all of them. The rates are the firmware defaults.
+
+| `--only` name | Values | Arrives |
+|---|---|---|
+| `temperature` | temperature (°C) | every 2 s |
+| `pressure` | air pressure (hPa) | every 2 s |
+| `humidity` | relative humidity (%) | every 2 s |
+| `gas` | eCO2 (ppm), TVOC (ppb) | every 10 s |
+| `color` | red, green, blue, clear (raw sensor counts) | every 1.5 s |
+| `battery` | battery level (%) | on connect, then when it changes |
+| `button` | pressed / released | on press and on release |
+| `tap` | direction (x+, x-, y+, y-, z+, z-), number of taps | on a tap |
+| `orientation` | portrait, landscape, reverse portrait, reverse landscape | when it changes |
+| `pedometer` | steps, walking time (ms) | when the step count changes |
+| `quaternion` | orientation quaternion w, x, y, z | 10 per second |
+| `raw` | accelerometer x, y, z (g), gyroscope (°/s), compass (µT) | 10 per second |
+| `euler` | roll, pitch, yaw (°) | 10 per second |
+| `rotation` | 3×3 rotation matrix | 10 per second |
+| `heading` | compass heading (°) | 10 per second |
+| `gravity` | gravity vector x, y, z (m/s²) | 10 per second |
+
+The last six come from the motion processing. While any of them is subscribed, the Thingy keeps its motion sensor running.
 
 ## Putting it on a new unit (once, by cable)
 
